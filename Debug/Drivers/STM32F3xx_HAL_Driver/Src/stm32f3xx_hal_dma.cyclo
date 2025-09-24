@@ -11,4 +11,4 @@
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c:792:22:HAL_DMA_GetState	1
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c:803:10:HAL_DMA_GetError	1
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c:829:13:DMA_SetConfig	2
-../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c:863:13:DMA_CalcBaseAndBitshift	1
+../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_dma.c:863:13:DMA_CalcBaseAndBitshift	2

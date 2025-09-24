@@ -1,5 +1,5 @@
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:214:19:HAL_RCC_DeInit	24	static,ignoring_inline_asm
-../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:314:19:HAL_RCC_OscConfig	520	static,ignoring_inline_asm
+../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:314:19:HAL_RCC_OscConfig	528	static,ignoring_inline_asm
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:694:19:HAL_RCC_ClockConfig	128	static,ignoring_inline_asm
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:886:6:HAL_RCC_MCOConfig	48	static
 ../Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_rcc.c:923:6:HAL_RCC_EnableCSS	16	static,ignoring_inline_asm
