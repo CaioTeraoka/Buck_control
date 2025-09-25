@@ -46,8 +46,8 @@ typedef struct
 
 typedef struct
 {
-	float Vin;
 	float Vout;
+	float IL;
 	float setPoint;
 }Buck_control;
 /* USER CODE END PTD */
@@ -55,8 +55,8 @@ typedef struct
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define BUCK_SETPOINT 5
-#define VIN_SCALE 1/10
-#define VOUT_SCALE 1/10
+#define VOUT_SCALE 10/4096
+#define IL_SCALE 1/(4096*0.55)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -73,7 +73,7 @@ TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN PV */
 PID pid;
 Buck_control Buck;
-static uint16_t internalAdcRawData[4];
+static uint16_t internalAdcRawData[2];
 static float dutyCycle;
 /* USER CODE END PV */
 
@@ -110,11 +110,6 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  // Calibrate The ADC On Power-Up For Better Accuracy
-  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) internalAdcRawData, 4);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -131,6 +126,10 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
+  	  // Calibrate The ADC On Power-Up For Better Accuracy
+	HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) internalAdcRawData, 2);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -224,8 +223,8 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 4;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
@@ -263,24 +262,6 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = ADC_REGULAR_RANK_3;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_7;
-  sConfig.Rank = ADC_REGULAR_RANK_4;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
@@ -307,9 +288,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 4;
+  htim3.Init.Prescaler = 4-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 100;
+  htim3.Init.Period = 100-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -374,8 +355,8 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -388,8 +369,8 @@ static void MX_GPIO_Init(void)
  * @retval None
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	Buck.Vin = internalAdcRawData[0] * VIN_SCALE;
-	Buck.Vout = internalAdcRawData[1] * VOUT_SCALE;
+	Buck.Vout = internalAdcRawData[0] * VOUT_SCALE;
+	Buck.IL = internalAdcRawData[1] * IL_SCALE;
 }
 
 float PID_run(PID *pid, float measurement, float setpoint)
