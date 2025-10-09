@@ -28,20 +28,15 @@
 /* USER CODE BEGIN PTD */
 typedef struct
 {
-    float Kp;              // Proportional gain constant
-    float Ki;              // Integral gain constant
-    float Kd;              // Derivative gain constant
-    float Kaw;             // Anti-windup gain constant
-    float T_C;             // Time constant for derivative filtering
-    float T;               // Time step
-    float max;             // Max command
-    float min;             // Min command
-    float max_rate;        // Max rate of change of the command
-    float integral;        // Integral term
-    float err_prev;        // Previous error
-    float deriv_prev;      // Previous derivative
-    float command_sat_prev;// Previous saturated command
-    float command_prev;    // Previous command
+	float Kp;         // Ganho proporcional
+	float Ki;         // Ganho integral
+	float Kd;         // Ganho derivativo
+	float setpoint;   // Valor desejado
+	float integral;   // Acumulador do termo integral
+	float prev_error; // Erro anterior
+	float output;     // Saída do controlador
+    float min_output; // limite mínimo
+    float max_output; // limite máximo
 }PID;
 
 typedef struct
@@ -86,7 +81,8 @@ static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
-float PID_run(PID *pid, float measurement, float setpoint);
+float PID_run(PID *pid, float measured_value, float dt);
+void PID_Init(PID *pid, float Kp, float Ki, float Kd, float setpoint, float min_output, float max_output);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,6 +99,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 	Buck.setPoint = BUCK_SETPOINT;
+	PID_Init(&pid, 1, 1, 1, 12, 0, 100);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -138,7 +135,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  dutyCycle = PID_run(&pid, Buck.Vout, Buck.setPoint);
+	  dutyCycle = PID_run(&pid, Buck.Vout, 0.1);
 	  TIM3->CCR1 = (uint32_t) (htim3.Init.Period * dutyCycle);
 	  HAL_Delay(100);
     /* USER CODE END WHILE */
@@ -442,73 +439,41 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	Buck.IL = internalAdcRawData[1] * IL_SCALE;
 }
 
-float PID_run(PID *pid, float measurement, float setpoint)
+
+void PID_Init(PID *pid, float Kp, float Ki, float Kd, float setpoint, float min_output, float max_output) {
+    pid->Kp = Kp;
+    pid->Ki = Ki;
+    pid->Kd = Kd;
+    pid->setpoint = setpoint;
+    pid->integral = 0.0f;
+    pid->prev_error = 0.0f;
+    pid->output = 0.0f;
+    pid->min_output = min_output;
+	pid->max_output = max_output;
+}
+
+float PID_run(PID *pid, float measured_value, float dt)
 {
-    /* This function implements a PID controller.
-     *
-     * Inputs:
-     *   measurement: current measurement of the process variable
-     *   setpoint: desired value of the process variable
-     *   pid: a pointer to a PID struct containing the controller parameters
-     *
-     * Returns:
-     *   command_sat: the control output of the PID controller (saturated based on max. min, max_rate)
-     */
+	float error = pid->setpoint - measured_value;
+	pid->integral += error * dt;
 
-    float err;
-    float command;
-    float command_sat;
-    float deriv_filt;
+	 // Limita integral com base nos limites de saída e ganho Ki
+	float max_integral = pid->max_output / (pid->Ki > 0.0f ? pid->Ki : 1.0f);
+	float min_integral = pid->min_output / (pid->Ki > 0.0f ? pid->Ki : 1.0f);
+	if (pid->integral > max_integral) pid->integral = max_integral;
+	if (pid->integral < min_integral) pid->integral = min_integral;
 
-    /* Error calculation */
-    err = setpoint - measurement;
+	float derivative = (error - pid->prev_error) / dt;
 
-    /* Integral term calculation - including anti-windup */
-    pid->integral += pid->Ki*err*pid->T + pid->Kaw*(pid->command_sat_prev - pid->command_prev)*pid->T;
+	pid->output = pid->Kp * error + pid->Ki * pid->integral + pid->Kd * derivative;
 
-    /* Derivative term calculation using filtered derivative method */
-    deriv_filt = (err - pid->err_prev + pid->T_C*pid->deriv_prev)/(pid->T + pid->T_C);
-    pid->err_prev = err;
-    pid->deriv_prev = deriv_filt;
+	// Limita a saída usando os valores da struct
+	if (pid->output > pid->max_output) pid->output = pid->max_output;
+	if (pid->output < pid->min_output) pid->output = pid->min_output;
 
-    /* Summing the 3 terms */
-    command = pid->Kp*err + pid->integral + pid->Kd*deriv_filt;
+	pid->prev_error = error;
 
-    /* Remember command at previous step */
-    pid->command_prev = command;
-
-    /* Saturate command */
-    if (command > pid->max)
-    {
-        command_sat = pid->max;
-    }
-    else if (command < pid->min)
-    {
-        command_sat = pid->min;
-    }
-    else
-    {
-        command_sat = command;
-    }
-
-    /* Apply rate limiter */
-    if (command_sat > pid->command_sat_prev + pid->max_rate*pid->T)
-    {
-        command_sat = pid->command_sat_prev + pid->max_rate*pid->T;
-    }
-    else if (command_sat < pid->command_sat_prev - pid->max_rate*pid->T)
-    {
-        command_sat = pid->command_sat_prev - pid->max_rate*pid->T;
-    }
-    else
-    {
-        /* No action */
-    }
-
-    /* Remember saturated command at previous step */
-    pid->command_sat_prev = command_sat;
-
-    return command_sat;
+	return pid->output;
 }
 
 /* USER CODE END 4 */
