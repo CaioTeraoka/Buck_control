@@ -66,10 +66,13 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim15;
 
 /* USER CODE BEGIN PV */
-PID pid;
+PID Voltage_pid;
+PID Current_pid;
 Buck_control Buck;
 static uint16_t internalAdcRawData[2];
 static float dutyCycle;
+static float V_ref;
+uint8_t en_currentControl = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,7 +100,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	PID_Init(&pid, 1, 1, 1, 12, 0, 100);
+	PID_Init(&Voltage_pid, 1, 1, 1, 12, 0, 100);
+	PID_Init(&Current_pid, 1, 1, 1, 1, 0, 5);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -124,16 +128,20 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
-	HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) internalAdcRawData, 2);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+  HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) internalAdcRawData, 2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  dutyCycle = PID_run(&pid, Buck.Vout, 0.1);
+	  if(en_currentControl == 1){
+		  V_ref = PID_run(&Current_pid, Buck.IL, 0.1);
+		  Voltage_pid.setpoint = V_ref;
+	  }
+	  dutyCycle = PID_run(&Voltage_pid, Buck.Vout, 0.1);
 	  TIM3->CCR4 = (uint32_t) (htim3.Init.Period * dutyCycle/100);
 	  HAL_Delay(100);
     /* USER CODE END WHILE */
