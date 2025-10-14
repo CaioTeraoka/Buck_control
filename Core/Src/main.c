@@ -43,7 +43,6 @@ typedef struct
 {
 	float Vout;
 	float IL;
-	float setPoint;
 }Buck_control;
 /* USER CODE END PTD */
 
@@ -98,7 +97,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	Buck.setPoint = BUCK_SETPOINT;
 	PID_Init(&pid, 1, 1, 1, 12, 0, 100);
   /* USER CODE END 1 */
 
@@ -136,7 +134,7 @@ int main(void)
   while (1)
   {
 	  dutyCycle = PID_run(&pid, Buck.Vout, 0.1);
-	  TIM3->CCR1 = (uint32_t) (htim3.Init.Period * dutyCycle);
+	  TIM3->CCR4 = (uint32_t) (htim3.Init.Period * dutyCycle/100);
 	  HAL_Delay(100);
     /* USER CODE END WHILE */
 
@@ -314,7 +312,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 50;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
